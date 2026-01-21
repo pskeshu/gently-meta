@@ -1,6 +1,6 @@
 # gently-meta
 
-Infrastructure for coordinating multiple gently systems.
+Infrastructure for coordinating multiple [gently](https://github.com/pskeshu/gently) systems.
 
 **Status**: Early concept.
 
@@ -25,7 +25,7 @@ A single gently instance controls one microscope. But real facilities have multi
 - Experiment scheduling and prioritization
 - Resource allocation and load balancing
 
-## Relationship to gently
+## Relationship to [gently](https://github.com/pskeshu/gently)
 
 ```
 ┌─────────────────────────────────────────────┐
