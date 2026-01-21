@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gently-meta.org/schemas/experiment_request.json",
+  "title": "Experiment Request",
+  "description": "Request to execute an experiment on a gently-meta coordinated microscope",
+  "type": "object",
+  "required": ["sample_spec", "requester", "experiment"],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier assigned by gently-meta"
+    },
+    "submission_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the request was submitted"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["submitted", "under_review", "approved", "rejected", "revision_requested", "scheduled", "in_progress", "completed", "cancelled", "failed"],
+      "default": "submitted"
+    },
+    "sample_spec": {
+      "$ref": "sample_spec.json",
+      "description": "Complete sample specification for the experiment"
+    },
+    "requester": {
+      "type": "object",
+      "required": ["name", "email", "institution"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Full name of the requester"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Contact email"
+        },
+        "institution": {
+          "type": "string",
+          "description": "Affiliated institution"
+        },
+        "department": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string"
+        },
+        "orcid": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{4}-\\d{4}-\\d{3}[0-9X]$",
+          "description": "ORCID identifier"
+        }
+      }
+    },
+    "experiment": {
+      "type": "object",
+      "required": ["microscope_system", "scientific_rationale"],
+      "properties": {
+        "microscope_system": {
+          "type": "string",
+          "description": "Requested microscope system type"
+        },
+        "microscope_id": {
+          "type": "string",
+          "description": "Specific microscope instance if known"
+        },
+        "scientific_rationale": {
+          "type": "string",
+          "minLength": 50,
+          "description": "Scientific justification for the experiment"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "urgent"],
+          "default": "medium"
+        },
+        "estimated_duration": {
+          "type": "number",
+          "description": "Estimated experiment duration in hours"
+        },
+        "data_requirements": {
+          "type": "object",
+          "properties": {
+            "estimated_size_gb": {"type": "number"},
+            "format_preferences": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "real_time_analysis": {"type": "boolean"}
+          }
+        },
+        "constraints": {
+          "type": "object",
+          "properties": {
+            "time_sensitive": {"type": "boolean"},
+            "preferred_dates": {
+              "type": "array",
+              "items": {"type": "string", "format": "date"}
+            },
+            "excluded_dates": {
+              "type": "array",
+              "items": {"type": "string", "format": "date"}
+            },
+            "sample_viability_window": {
+              "type": "number",
+              "description": "Hours until sample is no longer viable"
+            }
+          }
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "properties": {
+        "reviewer_name": {"type": "string"},
+        "reviewer_email": {"type": "string", "format": "email"},
+        "review_date": {"type": "string", "format": "date-time"},
+        "comments": {"type": "string"},
+        "requested_modifications": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "scheduling": {
+      "type": "object",
+      "properties": {
+        "scheduled_date": {"type": "string", "format": "date-time"},
+        "assigned_microscope_id": {"type": "string"},
+        "estimated_start": {"type": "string", "format": "date-time"},
+        "estimated_end": {"type": "string", "format": "date-time"}
+      }
+    },
+    "execution": {
+      "type": "object",
+      "properties": {
+        "start_time": {"type": "string", "format": "date-time"},
+        "end_time": {"type": "string", "format": "date-time"},
+        "actual_microscope_id": {"type": "string"},
+        "operator": {"type": "string"},
+        "completion_status": {
+          "type": "string",
+          "enum": ["success", "partial", "failed", "aborted"]
+        },
+        "execution_notes": {"type": "string"}
+      }
+    },
+    "results": {
+      "type": "object",
+      "properties": {
+        "data_location": {
+          "type": "string",
+          "description": "Path or URL to results"
+        },
+        "data_size_gb": {"type": "number"},
+        "file_count": {"type": "integer"},
+        "thumbnail_url": {"type": "string"},
+        "quality_metrics": {
+          "type": "object",
+          "description": "Quality control metrics"
+        },
+        "preliminary_analysis": {
+          "type": "string",
+          "description": "Brief summary of results"
+        }
+      }
+    },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timestamp": {"type": "string", "format": "date-time"},
+          "event": {"type": "string"},
+          "actor": {"type": "string"},
+          "details": {"type": "string"}
+        }
+      },
+      "description": "Audit trail of request lifecycle"
+    }
+  }
+}

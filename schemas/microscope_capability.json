@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gently-meta.org/schemas/microscope_capability.json",
+  "title": "Microscope Capability",
+  "description": "Advertisement of microscope capabilities for routing and scheduling",
+  "type": "object",
+  "required": ["microscope_id", "type", "status"],
+  "properties": {
+    "microscope_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "description": "Unique identifier for this microscope instance"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["widefield", "confocal", "two_photon", "light_sheet", "super_resolution", "spinning_disk", "DiSPIM"],
+      "description": "Primary microscope type"
+    },
+    "location": {
+      "type": "object",
+      "properties": {
+        "institution": {"type": "string"},
+        "building": {"type": "string"},
+        "room": {"type": "string"},
+        "timezone": {"type": "string"}
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["online", "offline", "maintenance", "busy", "reserved"],
+      "description": "Current operational status"
+    },
+    "last_heartbeat": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last time microscope reported status"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "3d_imaging",
+          "live_cell",
+          "fixed_cell",
+          "fast_acquisition",
+          "high_resolution",
+          "deep_tissue",
+          "multi_channel",
+          "tile_scan",
+          "time_lapse",
+          "minimal_phototoxicity",
+          "super_resolution_palm",
+          "super_resolution_storm",
+          "super_resolution_sted",
+          "TIRF",
+          "FRAP",
+          "FRET",
+          "optogenetics",
+          "environmental_control",
+          "autofocus",
+          "automated_acquisition"
+        ]
+      }
+    },
+    "hardware": {
+      "type": "object",
+      "properties": {
+        "manufacturer": {"type": "string"},
+        "model": {"type": "string"},
+        "objectives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "magnification": {"type": "number"},
+              "numerical_aperture": {"type": "number"},
+              "immersion": {
+                "type": "string",
+                "enum": ["air", "water", "oil", "glycerol", "silicone"]
+              },
+              "working_distance_mm": {"type": "number"}
+            }
+          }
+        },
+        "light_sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string"},
+              "wavelengths": {
+                "type": "array",
+                "items": {"type": "number"}
+              },
+              "max_power_mw": {"type": "number"}
+            }
+          }
+        },
+        "detectors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["CCD", "sCMOS", "EMCCD", "PMT", "HyD", "APD"]
+              },
+              "pixel_size_um": {"type": "number"},
+              "resolution": {
+                "type": "object",
+                "properties": {
+                  "x": {"type": "integer"},
+                  "y": {"type": "integer"}
+                }
+              },
+              "quantum_efficiency": {"type": "number"}
+            }
+          }
+        },
+        "filter_sets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "excitation": {"type": "number"},
+              "emission": {"type": "number"},
+              "fluorophores": {
+                "type": "array",
+                "items": {"type": "string"}
+              }
+            }
+          }
+        },
+        "stage": {
+          "type": "object",
+          "properties": {
+            "motorized": {"type": "boolean"},
+            "range_mm": {
+              "type": "object",
+              "properties": {
+                "x": {"type": "number"},
+                "y": {"type": "number"},
+                "z": {"type": "number"}
+              }
+            },
+            "precision_um": {"type": "number"}
+          }
+        },
+        "environmental_chamber": {
+          "type": "object",
+          "properties": {
+            "available": {"type": "boolean"},
+            "temperature_control": {"type": "boolean"},
+            "co2_control": {"type": "boolean"},
+            "humidity_control": {"type": "boolean"}
+          }
+        }
+      }
+    },
+    "software": {
+      "type": "object",
+      "properties": {
+        "acquisition_software": {"type": "string"},
+        "software_version": {"type": "string"},
+        "api_version": {"type": "string"},
+        "supported_formats": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "scheduling": {
+      "type": "object",
+      "properties": {
+        "available_hours": {
+          "type": "object",
+          "properties": {
+            "weekdays": {
+              "type": "object",
+              "properties": {
+                "start": {"type": "string", "pattern": "^\\d{2}:\\d{2}$"},
+                "end": {"type": "string", "pattern": "^\\d{2}:\\d{2}$"}
+              }
+            },
+            "weekends": {
+              "type": "object",
+              "properties": {
+                "start": {"type": "string", "pattern": "^\\d{2}:\\d{2}$"},
+                "end": {"type": "string", "pattern": "^\\d{2}:\\d{2}$"}
+              }
+            }
+          }
+        },
+        "max_booking_duration_hours": {"type": "number"},
+        "min_booking_duration_hours": {"type": "number"},
+        "advance_booking_days": {"type": "integer"}
+      }
+    },
+    "contacts": {
+      "type": "object",
+      "properties": {
+        "primary_contact": {
+          "type": "object",
+          "properties": {
+            "name": {"type": "string"},
+            "email": {"type": "string", "format": "email"},
+            "phone": {"type": "string"}
+          }
+        },
+        "reviewers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "email": {"type": "string", "format": "email"}
+            }
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "uptime_percentage": {"type": "number"},
+        "experiments_completed": {"type": "integer"},
+        "average_queue_time_hours": {"type": "number"},
+        "last_maintenance": {"type": "string", "format": "date-time"},
+        "next_maintenance": {"type": "string", "format": "date-time"}
+      }
+    },
+    "custom_capabilities": {
+      "type": "object",
+      "description": "Extension point for specialized capabilities"
+    }
+  }
+}

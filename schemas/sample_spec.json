@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gently-meta.org/schemas/sample_spec.json",
+  "title": "Sample Specification",
+  "description": "Complete experimental context required to produce reproducible biological observations",
+  "type": "object",
+  "required": ["sample_id", "biological_context"],
+  "properties": {
+    "sample_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{1,50}$",
+      "description": "Unique identifier for the sample"
+    },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "default": "1.0.0",
+      "description": "Version of the sample_spec schema"
+    },
+    "biological_context": {
+      "type": "object",
+      "required": ["cell_line"],
+      "properties": {
+        "cell_line": {
+          "type": "string",
+          "description": "Cell line identifier (e.g., 'HeLa', 'MCF-7', 'primary_human_fibroblasts')"
+        },
+        "passage_number": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of times cells have been subcultured"
+        },
+        "cell_density": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Cells per unit area or volume at time of experiment"
+        },
+        "culture_age": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Time since initial plating or last passage (hours)"
+        },
+        "organism": {
+          "type": "string",
+          "description": "Source organism (e.g., 'human', 'mouse', 'zebrafish')"
+        },
+        "tissue_type": {
+          "type": "string",
+          "description": "Tissue of origin"
+        },
+        "developmental_stage": {
+          "type": "string",
+          "description": "Developmental stage for whole organisms"
+        },
+        "genetic_modifications": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "List of genetic modifications (e.g., knockouts, reporters)"
+        }
+      }
+    },
+    "culture_conditions": {
+      "type": "object",
+      "properties": {
+        "media_type": {
+          "type": "string",
+          "description": "Base culture medium (e.g., 'DMEM', 'RPMI-1640')"
+        },
+        "media_supplements": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Additional components (e.g., '10% FBS', '1% Pen/Strep')"
+        },
+        "co2_percentage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "CO2 concentration for pH buffering"
+        },
+        "temperature_celsius": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 50,
+          "description": "Incubation temperature"
+        },
+        "humidity_percentage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Relative humidity"
+        },
+        "atmospheric_oxygen": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "O2 concentration (21% for normoxia, lower for hypoxia)"
+        }
+      }
+    },
+    "treatments": {
+      "type": "object",
+      "properties": {
+        "compounds": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "concentration", "units"],
+            "properties": {
+              "name": {"type": "string"},
+              "concentration": {"type": "number", "minimum": 0},
+              "units": {
+                "type": "string",
+                "enum": ["M", "mM", "uM", "nM", "pM", "mg/ml", "ug/ml", "ng/ml", "pg/ml", "%"]
+              },
+              "duration": {"type": "number", "minimum": 0},
+              "time_units": {
+                "type": "string",
+                "enum": ["seconds", "minutes", "hours", "days"]
+              },
+              "timing": {
+                "type": "string",
+                "description": "When treatment was applied relative to imaging"
+              }
+            }
+          }
+        },
+        "physical_perturbations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["mechanical_stress", "heat_shock", "cold_shock", "UV_exposure", "electrical_stimulation", "optogenetic"]
+              },
+              "parameters": {
+                "type": "object",
+                "description": "Type-specific parameters"
+              }
+            }
+          }
+        }
+      }
+    },
+    "sample_preparation": {
+      "type": "object",
+      "properties": {
+        "fixation_method": {
+          "type": "string",
+          "enum": ["live", "paraformaldehyde", "methanol", "acetone", "glutaraldehyde"]
+        },
+        "fixation_duration": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Duration in minutes"
+        },
+        "permeabilization": {"type": "boolean"},
+        "permeabilization_agent": {"type": "string"},
+        "blocking_agent": {"type": "string"}
+      }
+    },
+    "staining_protocol": {
+      "type": "object",
+      "properties": {
+        "primary_antibodies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "target": {"type": "string"},
+              "clone": {"type": "string"},
+              "host_species": {"type": "string"},
+              "concentration": {"type": "number"},
+              "incubation_time": {"type": "number"},
+              "incubation_temperature": {"type": "number"}
+            }
+          }
+        },
+        "secondary_antibodies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "fluorophore": {"type": "string"},
+              "host_species": {"type": "string"},
+              "target_species": {"type": "string"},
+              "concentration": {"type": "number"},
+              "incubation_time": {"type": "number"}
+            }
+          }
+        },
+        "nuclear_stain": {"type": "string"},
+        "vital_dyes": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "fluorescent_proteins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "target": {"type": "string"},
+              "excitation_peak": {"type": "number"},
+              "emission_peak": {"type": "number"}
+            }
+          }
+        }
+      }
+    },
+    "imaging_parameters": {
+      "type": "object",
+      "properties": {
+        "microscope_type": {
+          "type": "string",
+          "enum": ["widefield", "confocal", "two_photon", "light_sheet", "super_resolution", "spinning_disk"]
+        },
+        "objective_magnification": {
+          "type": "number",
+          "enum": [4, 10, 20, 40, 60, 63, 100]
+        },
+        "numerical_aperture": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 1.7
+        },
+        "immersion_medium": {
+          "type": "string",
+          "enum": ["air", "water", "oil", "glycerol", "silicone"]
+        },
+        "channels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {"type": "string"},
+              "excitation": {"type": "number"},
+              "emission": {"type": "number"},
+              "exposure_time": {"type": "number"},
+              "intensity": {"type": "number"},
+              "filter_set": {"type": "string"}
+            }
+          }
+        },
+        "z_stack": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "step_size": {"type": "number", "minimum": 0},
+            "num_planes": {"type": "integer", "minimum": 1},
+            "total_range": {"type": "number"}
+          }
+        },
+        "time_lapse": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "interval": {"type": "number", "description": "Interval in seconds"},
+            "duration": {"type": "number", "description": "Total duration in seconds"},
+            "num_timepoints": {"type": "integer"}
+          }
+        },
+        "tile_scan": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "grid_size": {
+              "type": "object",
+              "properties": {
+                "x": {"type": "integer"},
+                "y": {"type": "integer"}
+              }
+            },
+            "overlap_percentage": {"type": "number"}
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "experiment_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "operator": {"type": "string"},
+        "lab_conditions": {
+          "type": "object",
+          "properties": {
+            "ambient_temperature": {"type": "number"},
+            "ambient_humidity": {"type": "number"}
+          }
+        },
+        "equipment_ids": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "notes": {"type": "string"},
+        "protocol_reference": {
+          "type": "string",
+          "description": "Reference to detailed protocol document"
+        }
+      }
+    },
+    "custom_fields": {
+      "type": "object",
+      "description": "Extension point for domain-specific fields"
+    }
+  }
+}
