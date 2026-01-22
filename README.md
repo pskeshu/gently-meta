@@ -2,10 +2,6 @@
 
 Infrastructure for coordinating multiple [gently](https://github.com/pskeshu/gently) systems.
 
-**gently-meta** is a registry and discovery service for autonomous microscopy systems. It acts as a global resource that individual gently instances (autonomous microscopes) can query to discover other resources, coordinate experiments, and share compute infrastructure.
-
-## The Big Picture
-
 The Human Genome Project succeeded by coordinating sequencing across multiple centers worldwide - standardized formats, shared repositories, capability discovery. No single lab could have done it alone.
 
 **Microscopy is where sequencing was 25 years ago.** Experiments are facility-specific, hard to reproduce, limited by single-instrument thinking. gently-meta aims to change that.
@@ -17,19 +13,6 @@ Imagine:
 - A VLM monitors quality in real-time
 - The Model project generates the next hypothesis
 - Another facility picks up the follow-up experiment
-
-**Global coordination of imaging experiments.**
-
-## Vision
-
-A single [gently](https://github.com/pskeshu/gently) instance controls one microscope. But real facilities have multiple instruments, shared compute resources, sample handling robotics, and complex logistics. gently-meta is the coordination layer above individual gently instances.
-
-Modern microscopy facilities have multiple instruments, compute resources, and analysis capabilities distributed across locations. gently-meta provides:
-
-1. **Resource Registry**: Discover microscopes, HPC clusters, and VLMs available across the facility
-2. **Experiment Queue**: Researchers submit requests; reviewers approve and route to appropriate resources
-3. **Sample Specifications**: Standardized schemas ensure reproducibility across instruments
-4. **Capability Matching**: Match experiment requirements to available resources
 
 Individual gently instances remain **autonomous** - gently-meta is a registry they query, not a command layer.
 
@@ -68,34 +51,12 @@ Individual gently instances remain **autonomous** - gently-meta is a registry th
 2. **Compute resources** (HPC, VLM) also register as available services
 3. **Researchers submit experiments** to gently-meta's queue
 4. **Reviewers approve** and gently-meta matches requests to capable resources
-5. **gently instances query** gently-meta to discover:
-   - Other microscopes (for multi-modal experiments)
-   - HPC resources (for heavy processing)
-   - VLM services (for real-time QC)
+5. **gently instances query** gently-meta to discover other microscopes, HPC resources, and VLM services
 6. **Results flow** to shared data store, accessible to all registered resources
-
-## Scope
-
-### Multi-microscope coordination
-- Route samples to the right instrument based on availability and capability
-- Coordinate handoffs between imaging modalities
-- Share calibration and perception models across instruments
-
-### Shared resources
-- HPC job scheduling for compute-intensive analysis
-- Liquid handling and sample preparation robotics
-- Storage and data management across instruments
-
-### Facility-level intelligence
-- Sample tracking across instruments
-- Experiment scheduling and prioritization
-- Resource allocation and load balancing
 
 ## Components
 
 ### Resource Types
-
-gently-meta can register and track different resource types:
 
 | Type | Description | Examples |
 |------|-------------|----------|
@@ -335,17 +296,7 @@ Edit `notification_config.json` to configure reviewers for each microscope syste
 }
 ```
 
-## Relationship to Other Components
-
-### [gently](https://github.com/pskeshu/gently) Instances
-
-Each gently instance is autonomous but benefits from the registry:
-- **Registers** its capabilities on startup
-- **Queries** for compute resources when needed
-- **Discovers** other microscopes for multi-modal workflows
-- **Reports** status and results back to gently-meta
-
-### Model Project (Intelligence Layer)
+## Integration with Model
 
 gently-meta provides the **registry and coordination layer**; Model provides the **intelligence**:
 
@@ -358,14 +309,6 @@ gently-meta provides the **registry and coordination layer**; Model provides the
 
 Model queries gently-meta to find resources, then directs experiments based on scientific goals.
 
-### Compute Resources
-
-| Resource | Role | Example Uses |
-|----------|------|--------------|
-| **HPC** | Heavy batch processing | Deconvolution, segmentation, large-scale analysis |
-| **VLM** | Real-time understanding | QC monitoring, anomaly detection, experiment guidance |
-
-Compute resources register with gently-meta just like microscopes. A gently instance can query:
 ```python
 # Find available deconvolution service
 hpc = gently_meta.find(capability="deconvolution", status="online")
