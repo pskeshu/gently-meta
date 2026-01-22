@@ -133,6 +133,63 @@ The Sample_Spec defines the complete experimental context required to produce re
 
 See `schemas/sample_spec.json` for the complete schema.
 
+### Biological Context Search
+
+Search experiments by biological properties to find samples of a specific kind:
+
+```bash
+# Find all HeLa cell experiments
+curl "/api/v1/samples/search?cell_line=HeLa"
+
+# Find live-cell time-lapse experiments
+curl "/api/v1/samples/search?live_cell=true&has_time_lapse=true"
+
+# Find experiments with GFP or mCherry markers
+curl "/api/v1/samples/search?fluorescent_proteins=GFP&fluorescent_proteins=mCherry"
+
+# Complex query via POST
+curl -X POST /api/v1/samples/search -H "Content-Type: application/json" -d '{
+  "organism": "human",
+  "antibody_targets": ["tubulin", "actin"],
+  "microscope_type": "confocal"
+}'
+```
+
+**Searchable fields:**
+
+| Category | Fields |
+|----------|--------|
+| Biology | `cell_line`, `organism`, `tissue_type` |
+| Genetic | `genetic_modifications`, `fluorescent_proteins` |
+| Staining | `antibody_targets`, `fluorophores`, `nuclear_stain` |
+| Treatment | `compound_names` |
+| Imaging | `microscope_type`, `has_z_stack`, `has_time_lapse`, `live_cell` |
+| Workflow | `status` |
+
+String fields use partial case-insensitive matching. List fields match if any item overlaps.
+
+**Python API:**
+
+```python
+from gently_meta.queue import ExperimentQueue, BiologicalQuery
+
+queue = ExperimentQueue()
+
+# Search with kwargs
+results = queue.find_by_biology(cell_line="HeLa", has_time_lapse=True)
+
+# Search with query object
+query = BiologicalQuery(
+    organism="human",
+    fluorescent_proteins=["GFP"],
+    live_cell=True
+)
+results = queue.find_by_biology(query)
+
+# Get summary for a specific sample
+summary = queue.get_sample_summary(request_id)
+```
+
 ### Experiment Request Lifecycle
 
 ```
@@ -234,6 +291,13 @@ print(f"Request ID: {response.json()['request_id']}")
 | POST | `/api/v1/microscopes/register` | Register new resource |
 | PUT | `/api/v1/microscopes/{id}/status` | Update resource status |
 | GET | `/api/v1/microscopes/find` | Find resources by capability |
+
+### Sample Search
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET/POST | `/api/v1/samples/search` | Search by biological context |
+| GET | `/api/v1/samples/{id}/summary` | Get sample summary |
 
 ### Statistics
 

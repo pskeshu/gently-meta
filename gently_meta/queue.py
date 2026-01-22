@@ -6,12 +6,13 @@ enabling reviewers to approve/reject experiments for specific microscope systems
 """
 
 import json
+import re
 import uuid
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 
 
 class RequestStatus(Enum):
@@ -98,6 +99,149 @@ class HistoryEntry:
     event: str
     actor: str
     details: Optional[str] = None
+
+
+@dataclass
+class BiologicalQuery:
+    """
+    Query parameters for searching experiments by biological context.
+
+    All fields are optional - only non-None fields are used for filtering.
+    String fields support partial matching (case-insensitive).
+    List fields match if any item overlaps with the sample's list.
+    """
+    # Core biological identifiers
+    cell_line: Optional[str] = None
+    organism: Optional[str] = None
+    tissue_type: Optional[str] = None
+
+    # Genetic context
+    genetic_modifications: Optional[list[str]] = None  # Match any
+    fluorescent_proteins: Optional[list[str]] = None   # Match any (by name)
+
+    # Staining/markers
+    antibody_targets: Optional[list[str]] = None       # Match any primary antibody target
+    fluorophores: Optional[list[str]] = None           # Match any (secondary antibodies or FPs)
+    nuclear_stain: Optional[str] = None
+
+    # Treatments
+    compound_names: Optional[list[str]] = None         # Match any compound
+
+    # Imaging requirements
+    microscope_type: Optional[str] = None
+    has_z_stack: Optional[bool] = None
+    has_time_lapse: Optional[bool] = None
+    live_cell: Optional[bool] = None  # fixation_method == "live"
+
+    # Request metadata
+    status: Optional[str] = None
+
+    def matches(self, request: "ExperimentRequest") -> bool:
+        """Check if an experiment request matches this query."""
+        spec = request.sample_spec
+        bio = spec.get("biological_context", {})
+        staining = spec.get("staining_protocol", {})
+        imaging = spec.get("imaging_parameters", {})
+        treatments = spec.get("treatments", {})
+        prep = spec.get("sample_preparation", {})
+
+        # Helper for case-insensitive partial match
+        def str_match(query_val: Optional[str], target_val: Any) -> bool:
+            if query_val is None:
+                return True
+            if target_val is None:
+                return False
+            return query_val.lower() in str(target_val).lower()
+
+        # Helper for list overlap (any match)
+        def list_overlap(query_list: Optional[list], target_list: list) -> bool:
+            if query_list is None:
+                return True
+            if not target_list:
+                return False
+            query_lower = {q.lower() for q in query_list}
+            target_lower = {str(t).lower() for t in target_list}
+            return bool(query_lower & target_lower)
+
+        # Core biological context
+        if not str_match(self.cell_line, bio.get("cell_line")):
+            return False
+        if not str_match(self.organism, bio.get("organism")):
+            return False
+        if not str_match(self.tissue_type, bio.get("tissue_type")):
+            return False
+
+        # Genetic modifications
+        if self.genetic_modifications is not None:
+            target_mods = bio.get("genetic_modifications", [])
+            if not list_overlap(self.genetic_modifications, target_mods):
+                return False
+
+        # Fluorescent proteins (in staining_protocol)
+        if self.fluorescent_proteins is not None:
+            fps = staining.get("fluorescent_proteins", [])
+            fp_names = [fp.get("name", "") for fp in fps]
+            if not list_overlap(self.fluorescent_proteins, fp_names):
+                return False
+
+        # Antibody targets
+        if self.antibody_targets is not None:
+            primaries = staining.get("primary_antibodies", [])
+            targets = [ab.get("target", "") for ab in primaries]
+            if not list_overlap(self.antibody_targets, targets):
+                return False
+
+        # Fluorophores (from secondary antibodies)
+        if self.fluorophores is not None:
+            secondaries = staining.get("secondary_antibodies", [])
+            fluors = [ab.get("fluorophore", "") for ab in secondaries]
+            # Also include FP names
+            fps = staining.get("fluorescent_proteins", [])
+            fluors.extend([fp.get("name", "") for fp in fps])
+            if not list_overlap(self.fluorophores, fluors):
+                return False
+
+        # Nuclear stain
+        if not str_match(self.nuclear_stain, staining.get("nuclear_stain")):
+            return False
+
+        # Compound treatments
+        if self.compound_names is not None:
+            compounds = treatments.get("compounds", [])
+            names = [c.get("name", "") for c in compounds]
+            if not list_overlap(self.compound_names, names):
+                return False
+
+        # Microscope type
+        if not str_match(self.microscope_type, imaging.get("microscope_type")):
+            return False
+
+        # Z-stack
+        if self.has_z_stack is not None:
+            z_stack = imaging.get("z_stack", {})
+            has_z = z_stack.get("enabled", False)
+            if self.has_z_stack != has_z:
+                return False
+
+        # Time-lapse
+        if self.has_time_lapse is not None:
+            time_lapse = imaging.get("time_lapse", {})
+            has_tl = time_lapse.get("enabled", False)
+            if self.has_time_lapse != has_tl:
+                return False
+
+        # Live cell imaging
+        if self.live_cell is not None:
+            is_live = prep.get("fixation_method") == "live"
+            if self.live_cell != is_live:
+                return False
+
+        # Request status
+        if self.status is not None:
+            if request.status.value != self.status:
+                return False
+
+        return True
 
 
 @dataclass
@@ -309,6 +453,88 @@ class ExperimentQueue:
         results.sort(key=lambda r: (r.priority.sort_order, r.submission_date))
 
         return results
+
+    def find_by_biology(
+        self,
+        query: Optional[BiologicalQuery] = None,
+        **kwargs,
+    ) -> list[ExperimentRequest]:
+        """
+        Search experiments by biological context.
+
+        Can pass a BiologicalQuery object or keyword arguments directly.
+
+        Example usage:
+            # Using BiologicalQuery
+            query = BiologicalQuery(cell_line="HeLa", has_time_lapse=True)
+            results = queue.find_by_biology(query)
+
+            # Using kwargs directly
+            results = queue.find_by_biology(cell_line="HeLa", organism="human")
+
+            # Find all GFP experiments
+            results = queue.find_by_biology(fluorescent_proteins=["GFP", "EGFP"])
+
+            # Find live-cell time-lapse with specific treatment
+            results = queue.find_by_biology(
+                live_cell=True,
+                has_time_lapse=True,
+                compound_names=["nocodazole"]
+            )
+
+        Returns:
+            List of matching ExperimentRequest objects, sorted by priority then date.
+        """
+        if query is None:
+            query = BiologicalQuery(**kwargs)
+
+        results = [req for req in self.requests.values() if query.matches(req)]
+        results.sort(key=lambda r: (r.priority.sort_order, r.submission_date))
+
+        return results
+
+    def get_sample_summary(self, request_id: str) -> Optional[dict[str, Any]]:
+        """
+        Get a summary of the biological context for a specific experiment.
+
+        Returns a flattened view of key sample properties for quick inspection.
+        """
+        request = self.requests.get(request_id)
+        if not request:
+            return None
+
+        spec = request.sample_spec
+        bio = spec.get("biological_context", {})
+        staining = spec.get("staining_protocol", {})
+        imaging = spec.get("imaging_parameters", {})
+        prep = spec.get("sample_preparation", {})
+
+        # Extract fluorophore/marker info
+        fps = staining.get("fluorescent_proteins", [])
+        secondaries = staining.get("secondary_antibodies", [])
+        primaries = staining.get("primary_antibodies", [])
+
+        return {
+            "request_id": request_id,
+            "status": request.status.value,
+            "cell_line": bio.get("cell_line"),
+            "organism": bio.get("organism"),
+            "tissue_type": bio.get("tissue_type"),
+            "genetic_modifications": bio.get("genetic_modifications", []),
+            "fluorescent_proteins": [fp.get("name") for fp in fps],
+            "antibody_targets": [ab.get("target") for ab in primaries],
+            "fluorophores": (
+                [ab.get("fluorophore") for ab in secondaries] +
+                [fp.get("name") for fp in fps]
+            ),
+            "nuclear_stain": staining.get("nuclear_stain"),
+            "microscope_type": imaging.get("microscope_type"),
+            "live_cell": prep.get("fixation_method") == "live",
+            "has_z_stack": imaging.get("z_stack", {}).get("enabled", False),
+            "has_time_lapse": imaging.get("time_lapse", {}).get("enabled", False),
+            "requester": request.requester.name,
+            "institution": request.requester.institution,
+        }
 
     def approve(
         self,

@@ -12,7 +12,7 @@ from typing import Any
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from .queue import ExperimentQueue, RequestStatus
+from .queue import ExperimentQueue, RequestStatus, BiologicalQuery
 from .microscope_registry import MicroscopeRegistry, MicroscopeCapability, MicroscopeType, MicroscopeStatus
 from .notifications import NotificationService
 
@@ -316,6 +316,90 @@ def create_app(
             "count": len(approved),
             "approved_experiments": [req.to_dict() for req in approved],
         }), 200
+
+    # ========================================================================
+    # Sample Search Endpoints
+    # ========================================================================
+
+    @app.route('/api/v1/samples/search', methods=['GET', 'POST'])
+    def search_samples():
+        """
+        Search experiments by biological context.
+
+        GET params or POST JSON body:
+            cell_line: str - Cell line (partial match, e.g., "HeLa", "MCF")
+            organism: str - Organism (partial match, e.g., "human", "mouse")
+            tissue_type: str - Tissue type (partial match)
+            genetic_modifications: list[str] - Match any modification
+            fluorescent_proteins: list[str] - Match any FP (e.g., ["GFP", "mCherry"])
+            antibody_targets: list[str] - Match any antibody target
+            fluorophores: list[str] - Match any fluorophore
+            nuclear_stain: str - Nuclear stain (partial match)
+            compound_names: list[str] - Match any treatment compound
+            microscope_type: str - Microscope type
+            has_z_stack: bool - Filter for z-stack experiments
+            has_time_lapse: bool - Filter for time-lapse experiments
+            live_cell: bool - Filter for live vs fixed samples
+            status: str - Request status filter
+
+        Returns:
+            List of matching experiments with sample summaries.
+
+        Example queries:
+            GET /api/v1/samples/search?cell_line=HeLa&has_time_lapse=true
+            GET /api/v1/samples/search?fluorescent_proteins=GFP&fluorescent_proteins=mCherry
+            POST /api/v1/samples/search {"organism": "human", "live_cell": true}
+        """
+        try:
+            # Accept both GET params and POST body
+            if request.method == 'POST' and request.json:
+                params = request.json
+            else:
+                params = {}
+                # String fields
+                for field in ['cell_line', 'organism', 'tissue_type', 'nuclear_stain',
+                              'microscope_type', 'status']:
+                    if request.args.get(field):
+                        params[field] = request.args.get(field)
+
+                # List fields (can be specified multiple times)
+                for field in ['genetic_modifications', 'fluorescent_proteins',
+                              'antibody_targets', 'fluorophores', 'compound_names']:
+                    values = request.args.getlist(field)
+                    if values:
+                        params[field] = values
+
+                # Boolean fields
+                for field in ['has_z_stack', 'has_time_lapse', 'live_cell']:
+                    val = request.args.get(field)
+                    if val is not None:
+                        params[field] = val.lower() == 'true'
+
+            # Build query and search
+            bio_query = BiologicalQuery(**params)
+            results = queue.find_by_biology(bio_query)
+
+            # Return summaries for easier consumption
+            summaries = [queue.get_sample_summary(req.request_id) for req in results]
+
+            return jsonify({
+                "count": len(results),
+                "query": {k: v for k, v in params.items() if v is not None},
+                "samples": summaries,
+            }), 200
+
+        except TypeError as e:
+            return jsonify({"error": f"Invalid query parameter: {e}"}), 400
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route('/api/v1/samples/<request_id>/summary', methods=['GET'])
+    def get_sample_summary(request_id: str):
+        """Get biological context summary for a specific experiment."""
+        summary = queue.get_sample_summary(request_id)
+        if not summary:
+            return jsonify({"error": "Request not found"}), 404
+        return jsonify(summary), 200
 
     # ========================================================================
     # Microscope Registry Endpoints
