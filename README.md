@@ -2,57 +2,38 @@
 
 Infrastructure for coordinating multiple [gently](https://github.com/pskeshu/gently) systems.
 
-The Human Genome Project succeeded by coordinating sequencing across multiple centers worldwide - standardized formats, shared repositories, capability discovery. No single lab could have done it alone.
+A single [gently](https://github.com/pskeshu/gently) instance makes one microscope intelligent. But science doesn't happen on one instrument. A discovery on a sequencer should be able to mobilize microscopes. An imaging result should be able to trigger computation. The bottleneck in modern science isn't the instruments — it's the coordination between them.
 
-**Microscopy is where sequencing was 25 years ago.** Experiments are facility-specific, hard to reproduce, limited by single-instrument thinking. gently-meta aims to change that.
+The Human Genome Project understood this. It didn't just coordinate sequencing centers — it connected sequencing to annotation to analysis to biology. The breakthrough was coordination across modalities, not within one. No single lab could have done it alone.
+
+Scientific instrumentation today is where sequencing was before the HGP. Experiments are facility-specific, hard to reproduce, limited by single-instrument thinking. What if every intelligent instrument in the world could discover every other?
+
+That's what gently-meta is: a global registry where autonomous instrument agents find each other, share capabilities, and coordinate across modalities.
 
 Imagine:
-- A researcher in Tokyo submits an experiment requiring fast volumetric imaging
-- gently-meta routes it to an available DiSPIM in Boston
+- A genomics facility in Cambridge discovers an unexpected gene expression pattern
+- gently-meta mobilizes microscopes in Boston, Tokyo, and Heidelberg to validate it across diverse samples and imaging modalities
 - Results flow to shared storage, processed by HPC in Frankfurt
-- A VLM monitors quality in real-time
-- The Model project generates the next hypothesis
-- Another facility picks up the follow-up experiment
+- A VLM monitors imaging quality in real-time
+- The Model project integrates genomic and imaging data to generate the next hypothesis
+- Another facility picks up the follow-up experiment — in a different modality entirely
 
-Individual gently instances remain **autonomous** - gently-meta is a registry they query, not a command layer.
+The discovery-to-validation loop that currently takes months of emails and facility bookings happens in hours. No single lab needs to own every capability. The collective sees more than any individual.
+
+Individual gently instances remain **autonomous** — gently-meta is a registry they query, not a command layer.
 
 ## Architecture
 
-```
-                    ┌─────────────┐
-                    │    Model    │  (hypothesis generation)
-                    │  (future)   │
-                    └──────┬──────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────────┐
-│                        gently-meta                               │
-│                (global resource registry)                        │
-│                                                                  │
-│  • Microscope registry      • Experiment queue                   │
-│  • Compute resources        • Sample specifications              │
-│  • Capability discovery     • Workflow coordination              │
-└───┬─────────────┬─────────────┬─────────────┬───────────────────┘
-    │             │             │             │
-    ▼             ▼             ▼             ▼
-┌────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
-│ gently │  │  gently  │  │   HPC    │  │   VLM    │
-│(diSPIM)│  │(widefield)│  │ (deconv, │  │  (QC,    │
-└───┬────┘  └────┬─────┘  │ segment) │  │ monitor) │
-    │            │        └──────────┘  └──────────┘
-    │            │              ▲             ▲
-    └────────────┴──────────────┴─────────────┘
-                        │
-                   data store
-```
+![Architecture](docs/architecture.png)
 
 ### How it works
 
-1. **gently instances register** their capabilities with gently-meta on startup
-2. **Compute resources** (HPC, VLM) also register as available services
-3. **Researchers submit experiments** to gently-meta's queue
-4. **Reviewers approve** and gently-meta matches requests to capable resources
-5. **gently instances query** gently-meta to discover other microscopes, HPC resources, and VLM services
-6. **Results flow** to shared data store, accessible to all registered resources
+1. **Resources register** their capabilities with gently-meta on startup — microscopes, HPC, VLMs, genomics facilities
+2. **Researchers submit experiments** to gently-meta's queue
+3. **Reviewers approve** and gently-meta matches requests to capable resources across modalities
+4. **Resources query** gently-meta to discover each other — a microscope finds HPC for deconvolution, a genomics facility finds microscopes for validation
+5. **Results flow** to shared data store, accessible to all registered resources
+6. **Discoveries in one modality trigger experiments in another** — closing the loop between observation and hypothesis
 
 ## Components
 
@@ -65,6 +46,7 @@ Individual gently instances remain **autonomous** - gently-meta is a registry th
 | `vlm` | Vision-language models | Local LLaVA, Ollama instance |
 | `storage` | Data repositories | NAS, object storage |
 | `analysis` | Analysis services | Segmentation, tracking |
+| `genomics` | Sequencing and omics | Sequencing facilities, proteomics |
 | `robotics` | Sample handling | Liquid handlers, plate movers |
 
 ### Phase 1: Infrastructure (Current)
